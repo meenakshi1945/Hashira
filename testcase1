@@ -1,0 +1,107 @@
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+import org.json.JSONObject;
+
+public class TestCase1 {
+
+    public static void main(String[] args) {
+        String jsonInput = "{\"keys\": {\"n\": 4, \"k\": 3}, \"1\": {\"base\": \"10\", \"value\": \"4\"}, \"2\": {\"base\": \"2\", \"value\": \"111\"}, \"3\": {\"base\": \"10\", \"value\": \"12\"}, \"6\": {\"base\": \"4\", \"value\": \"213\"}}";
+        solve(jsonInput);
+    }
+
+    public static void solve(String jsonInput) {
+        JSONObject obj = new JSONObject(jsonInput);
+        JSONObject keys = obj.getJSONObject("keys");
+        int k = keys.getInt("k");
+        int m = k - 1;
+
+        List<BigInteger> roots = new ArrayList<>();
+        for (int i = 1; i <= keys.getInt("n"); i++) {
+            JSONObject rootData = obj.optJSONObject(String.valueOf(i));
+            if (rootData != null) {
+                String base = rootData.getString("base");
+                String value = rootData.getString("value");
+                roots.add(toDecimal(value, base));
+            }
+        }
+
+        List<BigInteger> selectedRoots = roots.subList(0, k);
+
+        BigInteger[][] matrix = new BigInteger[m][m];
+        BigInteger[] constants = new BigInteger[m];
+
+        for (int i = 0; i < m; i++) {
+            BigInteger root = selectedRoots.get(i);
+            BigInteger term = BigInteger.ONE;
+            for (int j = 0; j < m; j++) {
+                matrix[i][j] = term;
+                term = term.multiply(root);
+            }
+            constants[i] = BigInteger.ONE.negate().multiply(term);
+        }
+
+        BigInteger[] coefficients = solveSystem(matrix, constants);
+
+        System.out.println("--- Test Case 1 ---");
+        System.out.println("n: " + (m + 1));
+        System.out.println("m: " + m);
+        System.out.println("Coefficients:");
+        for (int i = 0; i < coefficients.length; i++) {
+            System.out.println("C" + i + ": " + coefficients[i]);
+        }
+        System.out.println("C" + m + ": 1");
+    }
+
+    public static BigInteger toDecimal(String value, String baseStr) {
+        int base = Integer.parseInt(baseStr);
+        return new BigInteger(value, base);
+    }
+
+    public static BigInteger[] solveSystem(BigInteger[][] matrix, BigInteger[] constants) {
+        int n = constants.length;
+        BigInteger[][] augmentedMatrix = new BigInteger[n][n + 1];
+
+        for (int i = 0; i < n; i++) {
+            System.arraycopy(matrix[i], 0, augmentedMatrix[i], 0, n);
+            augmentedMatrix[i][n] = constants[i];
+        }
+
+        for (int i = 0; i < n; i++) {
+            int pivotRow = i;
+            for (int j = i + 1; j < n; j++) {
+                if (augmentedMatrix[j][i].abs().compareTo(augmentedMatrix[pivotRow][i].abs()) > 0) {
+                    pivotRow = j;
+                }
+            }
+            if (pivotRow != i) {
+                BigInteger[] temp = augmentedMatrix[i];
+                augmentedMatrix[i] = augmentedMatrix[pivotRow];
+                augmentedMatrix[pivotRow] = temp;
+            }
+
+            BigInteger pivot = augmentedMatrix[i][i];
+            if (pivot.equals(BigInteger.ZERO)) {
+                // Matrix is singular, cannot find a unique solution
+                return new BigInteger[n];
+            }
+
+            for (int j = i + 1; j < n; j++) {
+                BigInteger factor = augmentedMatrix[j][i].divide(pivot);
+                for (int col = i; col <= n; col++) {
+                    augmentedMatrix[j][col] = augmentedMatrix[j][col].subtract(factor.multiply(augmentedMatrix[i][col]));
+                }
+            }
+        }
+
+        BigInteger[] result = new BigInteger[n];
+        for (int i = n - 1; i >= 0; i--) {
+            BigInteger sum = BigInteger.ZERO;
+            for (int j = i + 1; j < n; j++) {
+                sum = sum.add(augmentedMatrix[i][j].multiply(result[j]));
+            }
+            result[i] = (augmentedMatrix[i][n].subtract(sum)).divide(augmentedMatrix[i][i]);
+        }
+        return result;
+    }
+}
