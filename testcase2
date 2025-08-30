@@ -1,0 +1,106 @@
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.List;
+import org.json.JSONObject;
+
+public class TestCase2 {
+
+    public static void main(String[] args) {
+        String jsonInput = "{\"keys\": {\"n\": 10, \"k\": 7}, \"1\": {\"base\": \"6\", \"value\": \"13444211440455345511\"}, \"2\": {\"base\": \"15\", \"value\": \"aed7015a346d635\"}, \"3\": {\"base\": \"15\", \"value\": \"6aeeb69631c227c\"}, \"4\": {\"base\": \"16\", \"value\": \"e1b5e05623d881f\"}, \"5\": {\"base\": \"8\", \"value\": \"316034514573652620673\"}, \"6\": {\"base\": \"3\", \"value\": \"2122212201122002221120200210011020220200\"}, \"7\": {\"base\": \"3\", \"value\": \"20120221122211000100210021102001201112121\"}, \"8\": {\"base\": \"6\", \"value\": \"20220554335330240002224253\"}, \"9\": {\"base\": \"12\", \"value\": \"45153788322a1255483\"}, \"10\": {\"base\": \"7\", \"value\": \"1101613130313526312514143\"}}";
+        solve(jsonInput);
+    }
+
+    public static void solve(String jsonInput) {
+        JSONObject obj = new JSONObject(jsonInput);
+        JSONObject keys = obj.getJSONObject("keys");
+        int k = keys.getInt("k");
+        int m = k - 1;
+
+        List<BigInteger> roots = new ArrayList<>();
+        for (int i = 1; i <= keys.getInt("n"); i++) {
+            JSONObject rootData = obj.optJSONObject(String.valueOf(i));
+            if (rootData != null) {
+                String base = rootData.getString("base");
+                String value = rootData.getString("value");
+                roots.add(toDecimal(value, base));
+            }
+        }
+
+        List<BigInteger> selectedRoots = roots.subList(0, k);
+
+        BigInteger[][] matrix = new BigInteger[m][m];
+        BigInteger[] constants = new BigInteger[m];
+
+        for (int i = 0; i < m; i++) {
+            BigInteger root = selectedRoots.get(i);
+            BigInteger term = BigInteger.ONE;
+            for (int j = 0; j < m; j++) {
+                matrix[i][j] = term;
+                term = term.multiply(root);
+            }
+            constants[i] = BigInteger.ONE.negate().multiply(term);
+        }
+
+        BigInteger[] coefficients = solveSystem(matrix, constants);
+
+        System.out.println("--- Test Case 2 ---");
+        System.out.println("n: " + (m + 1));
+        System.out.println("m: " + m);
+        System.out.println("Coefficients:");
+        for (int i = 0; i < coefficients.length; i++) {
+            System.out.println("C" + i + ": " + coefficients[i]);
+        }
+        System.out.println("C" + m + ": 1");
+    }
+
+    public static BigInteger toDecimal(String value, String baseStr) {
+        int base = Integer.parseInt(baseStr);
+        return new BigInteger(value, base);
+    }
+
+    public static BigInteger[] solveSystem(BigInteger[][] matrix, BigInteger[] constants) {
+        int n = constants.length;
+        BigInteger[][] augmentedMatrix = new BigInteger[n][n + 1];
+
+        for (int i = 0; i < n; i++) {
+            System.arraycopy(matrix[i], 0, augmentedMatrix[i], 0, n);
+            augmentedMatrix[i][n] = constants[i];
+        }
+
+        for (int i = 0; i < n; i++) {
+            int pivotRow = i;
+            for (int j = i + 1; j < n; j++) {
+                if (augmentedMatrix[j][i].abs().compareTo(augmentedMatrix[pivotRow][i].abs()) > 0) {
+                    pivotRow = j;
+                }
+            }
+            if (pivotRow != i) {
+                BigInteger[] temp = augmentedMatrix[i];
+                augmentedMatrix[i] = augmentedMatrix[pivotRow];
+                augmentedMatrix[pivotRow] = temp;
+            }
+
+            BigInteger pivot = augmentedMatrix[i][i];
+            if (pivot.equals(BigInteger.ZERO)) {
+                return new BigInteger[n];
+            }
+
+            for (int j = i + 1; j < n; j++) {
+                BigInteger factor = augmentedMatrix[j][i].divide(pivot);
+                for (int col = i; col <= n; col++) {
+                    augmentedMatrix[j][col] = augmentedMatrix[j][col].subtract(factor.multiply(augmentedMatrix[i][col]));
+                }
+            }
+        }
+
+        BigInteger[] result = new BigInteger[n];
+        for (int i = n - 1; i >= 0; i--) {
+            BigInteger sum = BigInteger.ZERO;
+            for (int j = i + 1; j < n; j++) {
+                sum = sum.add(augmentedMatrix[i][j].multiply(result[j]));
+            }
+            result[i] = (augmentedMatrix[i][n].subtract(sum)).divide(augmentedMatrix[i][i]);
+        }
+        return result;
+    }
+}
